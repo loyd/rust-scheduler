@@ -42,10 +42,14 @@ pub fn set_policy(pid: i32, policy: Policy, priority: i32) -> Result<(), ()> {
         Policy::Idle => SCHED_IDLE,
         Policy::Deadline => SCHED_DEADLINE,
     };
-    let params = sched_param { sched_priority: priority };
-    let params_ptr: *const sched_param = &params;
+    let mut params = std::mem::MaybeUninit::<sched_param>::uninit();
+    let mut params = unsafe {
+        libc::sched_getparam(pid, params.as_mut_ptr());
+        params.assume_init()
+    };
+    params.sched_priority = priority;
 
-    match unsafe { sched_setscheduler(pid, c_policy, params_ptr) } {
+    match unsafe { sched_setscheduler(pid, c_policy, &params) } {
         0 => Ok(()),
         _ => Err(()),
     }
